@@ -1,0 +1,111 @@
+index.html
+Updated HTML with stats (Win Rate, Avg Trade) and auto-sorting:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading Dashboard</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0b0b0f; font-family: sans-serif; color: white; }
+        .header { text-align: center; padding: 25px; font-size: 26px; font-weight: bold; color: #d7b3ff; text-shadow: 0 0 10px #a855f7; }
+        .card { width: 92%; max-width: 500px; margin: 0 auto 20px auto; background: #14141a; padding: 20px; border-radius: 16px; border: 1px solid #2a2a33; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; text-align: center; }
+        .stat-box { background: #1a1a24; padding: 15px; border-radius: 12px; border: 1px solid #2a2a33; }
+        .stat-label { font-size: 10px; color: #a855f7; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-value { font-size: 20px; font-weight: bold; }
+        .trade-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 12px 0; border-bottom: 1px solid #2a2a33; font-size: 14px; }
+        .profit { color: #4ade80; }
+        .loss { color: #f87171; }
+        #status-msg { text-align: center; color: #666; font-size: 14px; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="header">AI Trading Dashboard</div>
+
+<div class="card">
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">Total Trades</div>
+            <div id="count" class="stat-value">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Net P/L</div>
+            <div id="total" class="stat-value">0.00</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Win Rate</div>
+            <div id="win-rate" class="stat-value">0%</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Avg Trade</div>
+            <div id="avg-trade" class="stat-value">0.00</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div id="trades-list">
+        <div id="status-msg">Initiating Direct Stream...</div>
+    </div>
+</div>
+
+<script>
+    const PROJECT_URL = "https://jwiwjrpcgutcjahojluq.supabase.co";
+    const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3aXdqcnBjZ3V0Y2phaG9qbHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3Nzc4OTAsImV4cCI6MjA5MTM1Mzg5MH0.FjNQGv9fwd1IRy9eIPE4RbsKhLV2m8_Pa_X_o_We8ZQ";
+
+    async function loadData() {
+        try {
+            const response = await fetch(`${PROJECT_URL}/rest/v1/trades?select=*&order=timestamp.desc`, {
+                headers: {
+                    "apikey": API_KEY,
+                    "Authorization": `Bearer ${API_KEY}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+            const data = await response.json();
+
+            if (!data || data.length === 0) {
+                document.getElementById("status-msg").innerText = "Connected: No trades found.";
+                return;
+            }
+
+            const fullTotalPL = data.reduce((sum, t) => sum + parseFloat(t.pl || 0), 0);
+            const fullWins = data.filter(t => parseFloat(t.pl || 0) > 0).length;
+            const winRate = ((fullWins / data.length) * 100).toFixed(1);
+            const avgTrade = (fullTotalPL / data.length).toFixed(2);
+
+            const html = data.slice(0, 40).map(t => {
+                const pl = parseFloat(t.pl || 0);
+                return `
+                    <div class="trade-row">
+                        <div style="font-weight:bold">${t.symbol || 'SPY'}</div>
+                        <div style="color:${t.side === 'BUY' ? '#4ade80' : '#f87171'}">${t.side || 'BUY'}</div>
+                        <div class="${pl >= 0 ? 'profit' : 'loss'}" style="text-align:right">${pl.toFixed(2)}</div>
+                    </div>`;
+            }).join('');
+
+            document.getElementById("trades-list").innerHTML = html;
+            document.getElementById("count").innerText = data.length;
+            document.getElementById("total").innerText = fullTotalPL.toFixed(2);
+            document.getElementById("total").className = fullTotalPL >= 0 ? 'stat-value profit' : 'stat-value loss';
+            document.getElementById("win-rate").innerText = winRate + "%";
+            document.getElementById("avg-trade").innerText = avgTrade;
+
+        } catch (e) {
+            document.getElementById("trades-list").innerHTML = "System Error: " + e.message;
+        }
+    }
+
+    loadData();
+    setInterval(loadData, 10000);
+</script>
+</body>
+</html>
+```
