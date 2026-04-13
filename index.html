@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Brain</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0b0b0f; font-family: sans-serif; color: white; }
+        .header { text-align: center; padding: 20px; font-size: 24px; font-weight: bold; color: #d7b3ff; text-shadow: 0 0 10px #a855f7; }
+        .status-bar { text-align: center; margin-bottom: 15px; font-size: 12px; color: #888; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .pulse { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 8px #4ade80; animation: blink 2s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .card { width: 92%; max-width: 500px; margin: 0 auto 15px auto; background: #14141a; padding: 20px; border-radius: 16px; border: 1px solid #2a2a33; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+        .stat-box { background: #1a1a24; padding: 12px; border-radius: 12px; border: 1px solid #2a2a33; }
+        .stat-label { font-size: 10px; color: #a855f7; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-value { font-size: 18px; font-weight: bold; }
+        .trade-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; padding: 12px 0; border-bottom: 1px solid #2a2a33; font-size: 14px; }
+        .profit { color: #4ade80; }
+        .loss { color: #f87171; }
+        #last-sync { font-size: 10px; color: #555; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="header">NEXUS BRAIN</div>
+<div class="status-bar"><div class="pulse"></div><span>System Active: Monitoring Market...</span></div>
+<div class="card">
+    <div class="stats-grid">
+        <div class="stat-box"><div class="stat-label">Worker Bankroll</div><div id="total" class="stat-value">$200.00</div></div>
+        <div class="stat-box"><div class="stat-label">Net Gain/Loss</div><div id="net-pl" class="stat-value">0.00</div></div>
+        <div class="stat-box"><div class="stat-label">Win Rate</div><div id="win-rate" class="stat-value">0%</div></div>
+        <div class="stat-box"><div class="stat-label">Total Actions</div><div id="count" class="stat-value">0</div></div>
+    </div>
+</div>
+<div class="card"><div id="trades-list"></div><div id="last-sync">Last Refresh: --:--:--</div></div>
+<script>
+    const PROJECT_URL = "https://jwiwjrpcgutcjahojluq.supabase.co";
+    const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3aXdqcnBjZ3V0Y2phaG9qbHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3Nzc4OTAsImV4cCI6MjA5MTM1Mzg5MH0.FjNQGv9fwd1IRy9eIPE4RbsKhLV2m8_Pa_X_o_We8ZQ";
+    async function fetchData() {
+        try {
+            const response = await fetch(`${PROJECT_URL}/rest/v1/trades?select=*&order=timestamp.desc`, {
+                headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
+            });
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const totalPL = data.reduce((sum, t) => sum + parseFloat(t.pl || 0), 0);
+                const wins = data.filter(t => parseFloat(t.pl || 0) > 0).length;
+                document.getElementById("count").innerText = data.length;
+                document.getElementById("net-pl").innerText = totalPL.toFixed(2);
+                document.getElementById("win-rate").innerText = ((wins / data.length) * 100).toFixed(1) + "%";
+                document.getElementById("total").innerText = "$" + (200 + totalPL).toFixed(2);
+                document.getElementById("trades-list").innerHTML = data.slice(0, 10).map(t => `<div class="trade-row"><span>${t.symbol}</span><span>${t.side}</span><span class="${parseFloat(t.pl)>=0?'profit':'loss'}">${parseFloat(t.pl).toFixed(2)}</span></div>`).join('');
+            }
+            document.getElementById("last-sync").innerText = "Last Sync: " + new Date().toLocaleTimeString();
+        } catch (e) { console.error(e); }
+    }
+    fetchData();
+    setInterval(fetchData, 15000);
+</script>
+</body>
+</html>
